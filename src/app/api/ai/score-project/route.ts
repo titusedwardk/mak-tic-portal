@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await supabase
       .from("projects")
       .update({
-        ai_viability_score: object.viability_score,
+        ai_score: object.viability_score,
         ai_summary: object.ai_summary,
         sdg_tags: object.sdg_tags,
       })

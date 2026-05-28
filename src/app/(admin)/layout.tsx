@@ -1,21 +1,71 @@
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import { ReactNode } from "react";
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { LayoutDashboard, Users, Settings, FileText } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+
+export const dynamic = 'force-dynamic';
+
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Check role
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || (profile.role !== "admin" && profile.role !== "reviewer")) {
+    redirect("/dashboard"); // Redirect normal users back to their portal
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b bg-primary text-primary-foreground shadow-sm">
-        <div className="container flex h-16 items-center">
-          <div className="font-bold text-lg mr-8">Mak-TIC Admin</div>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <a href="/admin/pipeline" className="transition-colors hover:text-primary-foreground/80">Pipeline</a>
-            <a href="/admin/scoring" className="transition-colors hover:text-primary-foreground/80 text-primary-foreground/60">Scoring</a>
-          </nav>
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      <aside className="w-full lg:w-64 border-r bg-muted/20">
+        <div className="flex h-14 lg:h-16 items-center border-b px-4 lg:px-6">
+          <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
+            <span className="text-primary font-bold text-xl">Mak-TIC Admin</span>
+          </Link>
         </div>
-      </header>
+        <nav className="p-4 space-y-2">
+          <Link 
+            href="/admin/dashboard" 
+            className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Projects
+          </Link>
+          {profile.role === "admin" && (
+            <Link 
+              href="/admin/users"
+              className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Users
+            </Link>
+          )}
+        </nav>
+      </aside>
       <main className="flex-1">
-        <div className="container py-6">
+        <header className="flex h-14 lg:h-16 items-center border-b px-4 lg:px-6 justify-end gap-4">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <span>{user.email}</span>
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs capitalize font-medium">
+              {profile.role}
+            </span>
+          </div>
+          <form action="/auth/signout" method="post">
+            <Button variant="outline" size="sm">Sign Out</Button>
+          </form>
+        </header>
+        <div className="p-4 lg:p-8">
           {children}
         </div>
       </main>

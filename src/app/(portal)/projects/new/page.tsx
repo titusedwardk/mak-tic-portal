@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 
+export const dynamic = 'force-dynamic';
+
 export default function NewProjectPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -26,11 +28,19 @@ export default function NewProjectPage() {
     proposed_solution: "",
   });
 
+  const [file, setFile] = useState<File | null>(null);
+
   const handleNext = () => setStep((prev) => prev + 1);
   const handleBack = () => setStep((prev) => prev - 1);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
   };
 
   const handleSubmit = async () => {
@@ -61,6 +71,31 @@ export default function NewProjectPage() {
         .single();
 
       if (dbError) throw dbError;
+
+      // Upload file if selected
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${user.id}/${project.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("project_files")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          toast.error("Project saved, but file upload failed.");
+        } else {
+          await supabase.from("project_files").insert({
+            project_id: project.id,
+            uploaded_by: user.id,
+            file_name: file.name,
+            file_type: "other",
+            storage_path: filePath,
+            file_size_bytes: file.size,
+            mime_type: file.type || "application/octet-stream"
+          });
+        }
+      }
 
       // Call Next.js API route to run Gemini Evaluation and update project
       const aiResponse = await fetch("/api/ai/score-project", {
@@ -188,6 +223,16 @@ export default function NewProjectPage() {
                   value={formData.proposed_solution}
                   onChange={(e) => handleChange("proposed_solution", e.target.value)}
                 />
+              </div>
+              <div className="space-y-2 pt-4 border-t">
+                <Label htmlFor="file_upload">Supporting Document (Pitch Deck, Demo Video, etc.)</Label>
+                <Input
+                  id="file_upload"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.mov"
+                />
+                <p className="text-xs text-muted-foreground">Optional. Attach a file to support your submission.</p>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
