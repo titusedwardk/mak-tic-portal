@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, getUserProfile } from '@/lib/supabase/server'
 import ProjectDetailTabs from '@/components/project-detail-tabs'
 import { FolderGit, Settings, RefreshCw, ChevronRight } from 'lucide-react'
-import Link from 'next/Link'
+import Link from 'next/link'
 
 // Define project stages
 const STAGES = [

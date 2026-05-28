@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, getUserProfile } from '@/lib/supabase/server'
 import { runMentorMatcher } from '@/lib/ai/gemini-agents'
 import { Users, User, Check, AlertCircle, Award, Compass, Star } from 'lucide-react'
-import Link from 'next/Link'
+import Link from 'next/link'
 
 export default async function AdminMentorsPage() {
   const supabase = await createClient()
