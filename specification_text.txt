@@ -82,7 +82,7 @@ Presentation
 Next.js pages, React components, shadcn/ui, Tailwind
 Vercel Edge + Client browser
 API / Middleware
-Next.js Route Handlers, middleware.ts, Supabase Edge Functions
+Next.js Route Handlers, proxy.ts, Supabase Edge Functions
 Vercel Serverless / Edge
 Intelligence
 Gemini AI agents (scoring, matching, tagging, scanning)
@@ -94,7 +94,7 @@ Supabase Cloud (managed)
 2.2 Key Architectural Decisions
 Server Components by default: all data-fetching pages are React Server Components. Client components only where interactivity is needed (forms, modals, real-time).
 Row-Level Security (RLS) on every Supabase table: the database enforces access control, not just the API layer. Even if middleware is bypassed, data remains protected.
-Edge Middleware for auth: middleware.ts runs on Vercel Edge and validates the Supabase session cookie on every request. Unauthenticated users are redirected to /login.
+Edge Middleware for auth: proxy.ts runs on Vercel Edge and validates the Supabase session cookie on every request. Unauthenticated users are redirected to /login.
 AI agents run as background jobs: long-running AI tasks (scoring, scanning) are triggered via Supabase Edge Functions with pg_cron or Supabase Queues, not blocking the user request.
 Optimistic UI with real-time sync: when an innovator submits a form, the UI updates immediately. Supabase Realtime pushes the confirmed state back to all connected clients.
 File uploads use Supabase Storage with signed URLs: files are uploaded directly from the client to Supabase Storage (bypassing the server), then the signed URL is stored in the database.
@@ -1079,7 +1079,7 @@ DEFAULT now()
 The following tables follow the same patterns and are described briefly: project_comments (threaded comments on projects by reviewers/mentors), mentor_sessions (scheduled sessions between mentors and innovators with notes and ratings), mentor_assignments (links mentors to projects with start/end dates), challenge_judges (maps judges to challenges with scores), ip_records (tracks IP filings: type, filing_date, registration_number, status, jurisdiction), and settings (key-value system configuration).
 
 4. Middleware, API Routes & Edge Functions
-4.1 Next.js Middleware (middleware.ts)
+4.1 Next.js Proxy (proxy.ts)
 Runs on Vercel Edge for every request. Performs three functions:
 Session validation: reads the Supabase auth cookie (sb-access-token), verifies the JWT, and attaches the user object to the request. If invalid or expired, redirects to /login.
 Role-based route protection: checks the user role against the requested path. /admin/* requires role in {admin, reviewer, lab_manager}. /portal/* requires any authenticated user. /showcase/* and /investors/* are public.
@@ -1759,7 +1759,7 @@ Goal: Working registration, login, project submission, and basic admin pipeline.
 Set up Next.js 16 project with TypeScript, Tailwind v4, shadcn/ui.
 Configure Supabase project: database schema (Users + Projects domains), storage buckets, RLS policies.
 Build auth flow: /login, /register (multi-step), /forgot-password.
-Build middleware.ts for auth + route protection.
+Build proxy.ts for auth + route protection.
 Build /dashboard (innovator home).
 Build /projects/new (multi-step wizard with file upload).
 Build /projects/[id] (project detail with tabs).
