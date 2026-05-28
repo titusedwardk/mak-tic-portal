@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,16 +21,24 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // TODO: Connect to Supabase Auth
     try {
-      // Mock login for now
-      setTimeout(() => {
-        toast.success("Login successful!");
-        router.push("/dashboard");
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
         setIsLoading(false);
-      }, 1000);
-    } catch (error) {
-      toast.error("Failed to login. Please check your credentials.");
+        return;
+      }
+
+      toast.success("Login successful!");
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: any) {
+      toast.error("An unexpected error occurred.");
       setIsLoading(false);
     }
   };

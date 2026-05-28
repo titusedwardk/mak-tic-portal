@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,15 +30,30 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // TODO: Connect to Supabase Auth
     try {
-      setTimeout(() => {
-        toast.success("Registration successful! Welcome to Mak-TIC.");
-        router.push("/dashboard");
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            affiliation: formData.affiliation,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
         setIsLoading(false);
-      }, 1000);
-    } catch (error) {
-      toast.error("Failed to register. Please try again.");
+        return;
+      }
+
+      toast.success("Registration successful! Welcome to Mak-TIC.");
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: any) {
+      toast.error("An unexpected error occurred.");
       setIsLoading(false);
     }
   };
