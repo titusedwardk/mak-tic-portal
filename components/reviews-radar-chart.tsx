@@ -75,9 +75,10 @@ export default function ReviewsRadarChart({ humanScores, aiScores }: RadarChartP
     const y = center + labelRadius * Math.sin(angle)
     
     // adjust text alignment based on coordinates
-    let textAnchor = 'middle'
+    let textAnchor: 'start' | 'end' | 'middle' = 'middle'
     if (Math.cos(angle) > 0.1) textAnchor = 'start'
     if (Math.cos(angle) < -0.1) textAnchor = 'end'
+
     
     return {
       label: dim.label,
