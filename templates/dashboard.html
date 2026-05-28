@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-banner">
+    <h1>Welcome, {{ current_user.full_name }}!</h1>
+    <p>
+        {% if current_user.role in ['admin', 'reviewer'] %}
+            You are logged in as a <strong>{{ current_user.role.replace('_', ' ').title() }}</strong>. 
+            You have full access to evaluate submitted projects and advance them through the stage-gate pipeline.
+        {% else %}
+            Track your submitted technology innovations, review feedback from stage-gate reviews, and update project milestones.
+        {% endif %}
+    </p>
+</div>
+
+<div class="grid-2">
+    <!-- LEFT COLUMN: Projects and Milestones -->
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        
+        <!-- Projects Section -->
+        <div class="card">
+            <div class="card-title">
+                <span>
+                    <i data-lucide="folder-open" style="vertical-align: middle; margin-right: 8px; color: var(--accent-gold);"></i>
+                    {% if current_user.role in ['admin', 'reviewer'] %}Active Incubation Projects{% else %}My Innovations{% endif %}
+                </span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary-dark);">{{ projects|length }} Projects</span>
+            </div>
+            
+            {% if projects %}
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    {% for p in projects[:3] %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background-color: var(--bg-card-dark); border: 1px solid var(--border-dark); border-radius: var(--radius-md); transition: var(--transition-smooth);">
+                        <div>
+                            <h4 style="font-size: 1.05rem; margin-bottom: 4px;">
+                                <a href="{{ url_for('project_detail', project_id=p.id) }}" style="color: #FFF; hover:color: var(--accent-gold);">{{ p.title }}</a>
+                            </h4>
+                            <div style="display: flex; gap: 12px; align-items: center; font-size: 0.75rem; color: var(--text-secondary-dark);">
+                                <span>Track: <strong style="color: #FFF;">{{ p.track.replace('_', ' ').title() }}</strong></span>
+                                <span>•</span>
+                                <span>AI Score: 
+                                    <strong style="color: {% if p.ai_score and p.ai_score >= 75 %}var(--color-success){% elif p.ai_score and p.ai_score >= 40 %}var(--accent-gold){% else %}var(--color-error){% endif %};">
+                                        {{ p.ai_score or 'N/A' }}
+                                    </strong>
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="badge badge-{{ p.stage }}">{{ p.stage.replace('_', ' ') }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if projects|length > 3 %}
+                <div style="text-align: right; margin-top: 16px;">
+                    <a href="{{ url_for('projects') }}" style="color: var(--accent-gold); font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>View All Projects</span>
+                        <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+                    </a>
+                </div>
+                {% endif %}
+            {% else %}
+                <div style="padding: 30px; text-align: center; color: var(--text-secondary-dark); border: 1px dashed var(--border-dark); border-radius: var(--radius-md);">
+                    <i data-lucide="folder-plus" style="width: 48px; height: 48px; color: var(--border-dark); margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;"></i>
+                    <p style="margin-bottom: 16px;">You haven't submitted any projects yet.</p>
+                    {% if current_user.role == 'innovator' %}
+                    <a href="{{ url_for('project_new') }}" class="btn btn-primary btn-sm">Submit New Project</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Milestones Section -->
+        <div class="card">
+            <div class="card-title">
+                <span>
+                    <i data-lucide="calendar-check" style="vertical-align: middle; margin-right: 8px; color: var(--accent-gold);"></i>
+                    Upcoming & Overdue Milestones
+                </span>
+            </div>
+            
+            {% if milestones %}
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    {% for m in milestones %}
+                    <div style="display: flex; align-items: start; gap: 16px; padding: 14px; background-color: var(--bg-card-dark); border: 1px solid var(--border-dark); border-radius: var(--radius-md);">
+                        <div style="margin-top: 2px;">
+                            <i data-lucide="{% if m.status == 'overdue' %}alert-circle{% else %}clock{% endif %}" 
+                               style="color: {% if m.status == 'overdue' %}var(--color-error){% else %}var(--accent-gold){% endif %}; width: 18px; height: 18px;"></i>
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <h4 style="font-size: 0.95rem; font-weight: 600; color: #FFF;">{{ m.title }}</h4>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: {% if m.status == 'overdue' %}var(--color-error){% else %}var(--text-secondary-dark){% endif %}; text-transform: uppercase;">
+                                    {{ m.status }}
+                                </span>
+                            </div>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary-dark); margin-top: 4px;">{{ m.description }}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.75rem;">
+                                <span style="color: var(--text-secondary-dark);">Project: <strong style="color: #FFF;">{{ m.project.title }}</strong></span>
+                                <span style="color: var(--accent-gold);">Due: {{ m.due_date.strftime('%b %d, %Y') if m.due_date else 'No Date' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="padding: 24px; text-align: center; color: var(--text-secondary-dark); border: 1px dashed var(--border-dark); border-radius: var(--radius-md);">
+                    No active or overdue milestones currently assigned.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- RIGHT COLUMN: Notifications and Quick Actions -->
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        
+        <!-- Notifications Feed -->
+        <div class="card">
+            <div class="card-title">
+                <span>
+                    <i data-lucide="bell-ring" style="vertical-align: middle; margin-right: 8px; color: var(--accent-gold);"></i>
+                    Inbox / Notifications
+                </span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% if notifications %}
+                    {% for n in notifications %}
+                    <div class="notif-item {% if not n.read_at %}unread{% endif %}" 
+                         onclick="markNotifRead('{{ n.id }}', this)" 
+                         style="padding: 12px; border-radius: var(--radius-md); background-color: var(--bg-card-dark); border: 1px solid var(--border-dark);">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #FFF;">
+                            <span>{{ n.title }}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary-dark);">{{ n.created_at.strftime('%H:%M') }}</span>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary-dark); margin-top: 4px;">{{ n.body }}</p>
+                        {% if n.link %}
+                        <a href="{{ n.link }}" style="font-size: 0.75rem; color: var(--accent-gold); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-weight: 600;">
+                            <span>View details</span>
+                            <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 20px; text-align: center; color: var(--text-secondary-dark); font-size: 0.85rem;">
+                        No new notifications.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Actions Panel -->
+        <div class="card">
+            <div class="card-title">
+                <span>
+                    <i data-lucide="stars" style="vertical-align: middle; margin-right: 8px; color: var(--accent-gold);"></i>
+                    Quick Incubator Actions
+                </span>
+            </div>
+            
+            <div class="quick-actions-grid" style="grid-template-columns: repeat(2, 1fr);">
+                {% if current_user.role == 'innovator' %}
+                <a href="{{ url_for('project_new') }}" class="quick-action-btn">
+                    <div class="quick-action-icon"><i data-lucide="file-plus-2"></i></div>
+                    <span>New Project</span>
+                </a>
+                {% else %}
+                <a href="{{ url_for('admin_pipeline') }}" class="quick-action-btn">
+                    <div class="quick-action-icon"><i data-lucide="git-pull-request"></i></div>
+                    <span>Pipeline Gate</span>
+                </a>
+                {% endif %}
+                
+                <div class="quick-action-btn" onclick="alert('LMS courses & resource directory - Coming in Phase 3!')">
+                    <div class="quick-action-icon"><i data-lucide="graduation-cap"></i></div>
+                    <span>LMS Courses</span>
+                </div>
+                
+                <div class="quick-action-btn" onclick="alert('MakerSpace & Lab Facility Bookings - Coming in Phase 3!')">
+                    <div class="quick-action-icon"><i data-lucide="calendar"></i></div>
+                    <span>Book MakerSpace</span>
+                </div>
+                
+                <div class="quick-action-btn" onclick="alert('Community Forum & Message Board - Coming in Phase 3!')">
+                    <div class="quick-action-icon"><i data-lucide="messages-square"></i></div>
+                    <span>Forums</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

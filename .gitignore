@@ -1,0 +1,10 @@
+.env
+dev.db
+*.pyc
+__pycache__/
+repo_files.json
+get_repo_files.py
+push_via_git.py
+.git/
+static/uploads/*
+!static/uploads/.gitkeep

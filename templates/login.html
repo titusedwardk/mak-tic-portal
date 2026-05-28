@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if forgot %}Reset Password{% else %}Log In{% endif %} | Mak-TIC Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body style="background-color: var(--bg-dark); color: var(--text-primary-dark);">
+    <div class="auth-layout">
+        <!-- Left Side: Interactive Graphic/Stats Panel -->
+        <div class="auth-graphic-pane">
+            <div style="margin-bottom: auto;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F39C12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+            </div>
+            
+            <div style="margin-bottom: auto; margin-top: 40px;">
+                <h1 class="auth-headline">Makerere Technology & Innovation Portal</h1>
+                <p class="auth-subtitle">
+                    Access the university's central incubator workspace. Work with expert mentors, receive stage gate reviews, and secure grant disbursements directly to Mobile Money.
+                </p>
+            </div>
+            
+            <div class="auth-stats-row">
+                <div class="auth-stat-item">
+                    <h4>UGX 45M</h4>
+                    <p>Funds Disbursed</p>
+                </div>
+                <div class="auth-stat-item">
+                    <h4>87%</h4>
+                    <p>Graduate Success</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Side: Forms Panel -->
+        <div class="auth-form-pane">
+            <div class="auth-card">
+                <!-- Flash Messaging inside Auth -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div style="margin-bottom: 24px; padding: 12px 16px; border-radius: var(--radius-sm); background-color: {% if category == 'success' %}rgba(16, 185, 129, 0.15){% else %}rgba(239, 68, 68, 0.15){% endif %}; border: 1px solid {% if category == 'success' %}rgba(16, 185, 129, 0.3){% else %}rgba(239, 68, 68, 0.3){% endif %}; font-size: 0.85rem; color: {% if category == 'success' %}#34D399{% else %}#F87171{% endif %};">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if forgot %}
+                <!-- FORGOT PASSWORD FORM -->
+                <div class="auth-header">
+                    <h2>Reset Password</h2>
+                    <p>Enter your email address and we'll send you a password recovery link.</p>
+                </div>
+                
+                <form action="{{ url_for('forgot_password') }}" method="POST">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="yourname@domain.com" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 12px;">
+                        <span>Send Reset Link</span>
+                        <i data-lucide="mail"></i>
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 24px; font-size: 0.85rem;">
+                        <a href="{{ url_for('login') }}" style="color: var(--accent-gold); font-weight: 600;">
+                            Back to Log In
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <!-- LOGIN FORM -->
+                <div class="auth-header">
+                    <h2>Welcome Back</h2>
+                    <p>Enter your credentials to access your incubator workspace.</p>
+                </div>
+                
+                <form action="{{ url_for('login') }}" method="POST">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" placeholder="yourname@mak-tic.ac.ug" required>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                    
+                    <div style="text-align: right; margin-bottom: 24px;">
+                        <a href="{{ url_for('forgot_password') }}" style="color: var(--text-secondary-dark); font-size: 0.8rem;">
+                            Forgot password?
+                        </a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                        <span>Log In</span>
+                        <i data-lucide="log-in"></i>
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 24px; font-size: 0.85rem; color: var(--text-secondary-dark);">
+                        Don't have an account? 
+                        <a href="{{ url_for('register') }}" style="color: var(--accent-gold); font-weight: 600;">
+                            Apply as Innovator
+                        </a>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

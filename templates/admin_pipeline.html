@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block breadcrumb %}Admin: Stage Gate Kanban Board{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <h1 style="font-size: 1.75rem; font-family: 'Outfit';">Stage Gate Review Pipeline</h1>
+    <p style="color: var(--text-secondary-dark); font-size: 0.85rem;">Drag and drop project cards between columns to advance their validation stage gate.</p>
+</div>
+
+<!-- Kanban Workspace Wrapper -->
+<div class="kanban-board">
+    {% for stage_name in stages %}
+    <div class="kanban-column">
+        <div class="kanban-column-header">
+            <h3 class="kanban-column-title">
+                <i data-lucide="{% if stage_name == 'submitted' %}inbox{% elif stage_name == 'screening' %}shield-alert{% elif stage_name == 'problem_validation' %}search-code{% elif stage_name == 'solution_viability' %}cpu{% elif stage_name == 'impact_assessment' %}globe{% elif stage_name == 'prototype_review' %}wrench{% elif stage_name == 'commercialization' %}banknote{% else %}trophy{% endif %}"
+                   style="width: 16px; height: 16px; color: var(--accent-gold);"></i>
+                <span>{{ stage_name.replace('_', ' ') }}</span>
+            </h3>
+            <span class="kanban-column-count">{{ pipeline[stage_name]|length }}</span>
+        </div>
+        
+        <div class="kanban-cards-container" data-stage="{{ stage_name }}">
+            {% for project in pipeline[stage_name] %}
+            <div class="kanban-card" draggable="true" data-project-id="{{ project.id }}">
+                <h4 class="kanban-card-title">
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}" style="color: #FFF; hover:color: var(--accent-gold);">{{ project.title }}</a>
+                </h4>
+                <div style="font-size: 0.75rem; color: var(--text-secondary-dark); text-transform: uppercase; margin-top: 4px;">
+                    Domain: <strong style="color: #FFF;">{{ project.sector.split(',')[0] }}</strong>
+                </div>
+                
+                <div class="kanban-card-meta">
+                    <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        <i data-lucide="user" style="width: 12px; height: 12px;"></i>
+                        <span>{{ project.owner.full_name.split(' ')[0] }}</span>
+                    </span>
+                    
+                    {% if project.ai_score %}
+                    <span class="kanban-score-pill" title="AI Viability Score">
+                        ★ {{ project.ai_score }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+{% endblock %}

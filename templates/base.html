@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mak-TIC Innovation Portal</title>
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F39C12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <span class="sidebar-logo-text">Mak-TIC</span>
+                    <span class="sidebar-logo-sub">Innovation Hub</span>
+                </div>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li class="sidebar-item {% if request.path == url_for('dashboard') %}active{% endif %}">
+                    <a href="{{ url_for('dashboard') }}">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                
+                <li class="sidebar-item {% if request.path == url_for('projects') %}active{% endif %}">
+                    <a href="{{ url_for('projects') }}">
+                        <i data-lucide="folder-kanban"></i>
+                        <span>Projects</span>
+                    </a>
+                </li>
+                
+                {% if current_user.role == 'innovator' %}
+                <li class="sidebar-item {% if request.path == url_for('project_new') %}active{% endif %}">
+                    <a href="{{ url_for('project_new') }}">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Submit Project</span>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if current_user.role in ['admin', 'reviewer'] %}
+                <li class="sidebar-item {% if request.path == url_for('admin_pipeline') %}active{% endif %}">
+                    <a href="{{ url_for('admin_pipeline') }}">
+                        <i data-lucide="git-pull-request"></i>
+                        <span>Pipeline Gate</span>
+                    </a>
+                </li>
+                <li class="sidebar-item {% if request.path == url_for('admin_scoring') %}active{% endif %}">
+                    <a href="{{ url_for('admin_scoring') }}">
+                        <i data-lucide="gauge"></i>
+                        <span>AI Calibration</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+            
+            <div class="sidebar-footer">
+                <div class="sidebar-avatar">
+                    {% if current_user.avatar_url %}
+                        <img src="{{ current_user.avatar_url }}" alt="Avatar">
+                    {% else %}
+                        {{ current_user.full_name[:2].upper() }}
+                    {% endif %}
+                </div>
+                <div class="sidebar-user-info">
+                    <span class="sidebar-username">{{ current_user.full_name }}</span>
+                    <span class="sidebar-role">{{ current_user.role.replace('_', ' ') }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" title="Logout" style="margin-left: auto; color: var(--color-error);">
+                    <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Panel -->
+        <main class="main-viewport">
+            <header class="topbar">
+                <div class="breadcrumb-title">
+                    {% block breadcrumb %}Dashboard{% endblock %}
+                </div>
+                
+                <div class="topbar-actions">
+                    <!-- Notification dropdown container -->
+                    <div style="position: relative;">
+                        <button class="notif-bell" id="notifBell">
+                            <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
+                            {% if current_user.notifications and current_user.notifications|selectattr('read_at', 'none')|list|length > 0 %}
+                            <span class="notif-badge">
+                                {{ current_user.notifications|selectattr('read_at', 'none')|list|length }}
+                            </span>
+                            {% endif %}
+                        </button>
+                        
+                        <div class="notif-dropdown" id="notifDropdown">
+                            <div class="notif-header">
+                                <span>Notifications</span>
+                                <span style="font-size: 0.75rem; color: var(--accent-gold);">Recent</span>
+                            </div>
+                            <div class="notif-list">
+                                {% if current_user.notifications %}
+                                    {% for notif in current_user.notifications[:5] %}
+                                    <div class="notif-item {% if not notif.read_at %}unread{% endif %}" 
+                                         onclick="markNotifRead('{{ notif.id }}', this)">
+                                        <div class="notif-item-title">{{ notif.title }}</div>
+                                        <div class="notif-item-body">{{ notif.body }}</div>
+                                        <span class="notif-item-time">{{ notif.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div style="padding: 20px; text-align: center; font-size: 0.8rem; color: var(--text-secondary-dark);">
+                                        No notifications yet
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <section class="page-content">
+                <!-- Flask Flash Messaging -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="card" style="margin-bottom: 24px; padding: 16px; border-left: 4px solid {% if category == 'success' %}var(--color-success){% elif category == 'error' %}var(--color-error){% else %}var(--color-info){% endif %}; animation: slideDown 0.3s ease;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <i data-lucide="{% if category == 'success' %}check-circle-2{% elif category == 'error' %}alert-triangle{% else %}info{% endif %}" style="color: {% if category == 'success' %}var(--color-success){% elif category == 'error' %}var(--color-error){% else %}var(--color-info){% endif %};"></i>
+                                    <span style="font-weight: 600; font-size: 0.9rem;">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </section>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Initialize lucide icons
+        lucide.createIcons();
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

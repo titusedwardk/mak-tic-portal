@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply as Innovator | Mak-TIC Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body style="background-color: var(--bg-dark); color: var(--text-primary-dark);">
+    <div class="auth-layout" style="grid-template-columns: 1fr 1.2fr;">
+        <!-- Left Side: Interactive Wizard Panel -->
+        <div class="auth-form-pane" style="padding: 60px;">
+            <div style="max-width: 520px; width: 100%; margin: 0 auto;">
+                
+                <!-- Wizard Stepper Indicators -->
+                <div class="wizard-steps" style="margin-bottom: 30px;">
+                    <div class="wizard-step active" data-step="1">
+                        <div class="wizard-step-circle">1</div>
+                        <span class="wizard-step-label">Account</span>
+                    </div>
+                    <div class="wizard-step" data-step="2">
+                        <div class="wizard-step-circle">2</div>
+                        <span class="wizard-step-label">Profile</span>
+                    </div>
+                    <div class="wizard-step" data-step="3">
+                        <div class="wizard-step-circle">3</div>
+                        <span class="wizard-step-label">Skills</span>
+                    </div>
+                </div>
+
+                <div class="auth-header" style="margin-bottom: 24px;">
+                    <h2>Innovator Application</h2>
+                    <p>Join Makerere's premier incubation network to build your tech startup.</p>
+                </div>
+
+                <form id="regForm" action="{{ url_for('register') }}" method="POST">
+                    
+                    <!-- STEP 1: Account Credentials -->
+                    <div class="wizard-pane active" id="pane-1">
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <input type="email" id="email" name="email" class="form-control" placeholder="name@mak-tic.ac.ug" required>
+                            <div class="form-tip">We recommend using your Makerere university email if available.</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" class="form-control" placeholder="Minimum 6 characters" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="full_name">Full Name</label>
+                            <input type="text" id="full_name" name="full_name" class="form-control" placeholder="John Bosco Kato" required>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary btn-next" style="width: 100%; margin-top: 10px; padding: 12px;">
+                            <span>Continue to Profile</span>
+                            <i data-lucide="arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <!-- STEP 2: Affiliation & Details -->
+                    <div class="wizard-pane" id="pane-2">
+                        <div class="form-group">
+                            <label for="affiliation">University Affiliation</label>
+                            <select id="affiliation" name="affiliation" class="form-control" onchange="toggleAffiliationDetails()" required>
+                                <option value="makerere_student">Makerere Student</option>
+                                <option value="makerere_staff">Makerere Staff / Researcher</option>
+                                <option value="makerere_alumni">Makerere Alumni</option>
+                                <option value="external">External Applicant</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="studentIdGroup">
+                            <label for="student_id">Student / Staff ID Number</label>
+                            <input type="text" id="student_id" name="student_id" class="form-control" placeholder="e.g. 210071420">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="department">College / Department</label>
+                            <input type="text" id="department" name="department" class="form-control" placeholder="e.g. CEDAT Electrical Engineering">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone">Phone Number (MTN/Airtel for MoMo)</label>
+                            <input type="text" id="phone" name="phone" class="form-control" placeholder="e.g. +256 772 123456" required>
+                            <div class="form-tip">Must be registered for Mobile Money to receive project funding.</div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 16px; margin-top: 20px;">
+                            <button type="button" class="btn btn-outline btn-prev" style="flex: 1; padding: 12px;">
+                                <i data-lucide="arrow-left"></i>
+                                <span>Back</span>
+                            </button>
+                            <button type="button" class="btn btn-primary btn-next" style="flex: 1; padding: 12px;">
+                                <span>Continue</span>
+                                <i data-lucide="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: Bio & Skills -->
+                    <div class="wizard-pane" id="pane-3">
+                        <div class="form-group">
+                            <label for="bio">Short Biography</label>
+                            <textarea id="bio" name="bio" class="form-control" rows="3" placeholder="Tell us briefly about yourself, your research interests, or startup goals..." required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="skills">Skills & Expertise (Comma-separated)</label>
+                            <input type="text" id="skills" name="skills" class="form-control" placeholder="e.g. Python, IoT hardware, Biochemistry, Business Strategy">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="linkedin_url">LinkedIn Profile Link</label>
+                            <input type="url" id="linkedin_url" name="linkedin_url" class="form-control" placeholder="https://linkedin.com/in/username">
+                        </div>
+                        
+                        <div style="display: flex; gap: 16px; margin-top: 20px;">
+                            <button type="button" class="btn btn-outline btn-prev" style="flex: 1; padding: 12px;">
+                                <i data-lucide="arrow-left"></i>
+                                <span>Back</span>
+                            </button>
+                            <button type="submit" class="btn btn-accent" style="flex: 1; padding: 12px;">
+                                <span>Complete Application</span>
+                                <i data-lucide="check-circle-2"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 24px; font-size: 0.85rem; color: var(--text-secondary-dark);">
+                        Already have an account? 
+                        <a href="{{ url_for('login') }}" style="color: var(--accent-gold); font-weight: 600;">
+                            Log In Here
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Side: Graphic/Info Panel -->
+        <div class="auth-graphic-pane" style="background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-navy-dark) 100%);">
+            <h2 style="font-size: 2.25rem; font-family: 'Outfit'; margin-bottom: 20px; color: #FFF;">Start Your Incubation Journey</h2>
+            
+            <div style="display: flex; flex-direction: column; gap: 30px; margin-top: 20px; max-width: 480px;">
+                <div style="display: flex; gap: 20px;">
+                    <div style="width: 42px; height: 42px; border-radius: 50%; background-color: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent-gold); flex-shrink: 0; color: var(--accent-gold);">
+                        <i data-lucide="pencil-line"></i>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1.05rem; margin-bottom: 4px; color: #FFF;">1. Apply & Submit</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary-dark); line-height: 1.4;">
+                            Complete your registration profile and submit your technology project proposal with documents.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 20px;">
+                    <div style="width: 42px; height: 42px; border-radius: 50%; background-color: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent-gold); flex-shrink: 0; color: var(--accent-gold);">
+                        <i data-lucide="cpu"></i>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1.05rem; margin-bottom: 4px; color: #FFF;">2. AI Pre-Screening</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary-dark); line-height: 1.4;">
+                            Our Google Gemini Scorer generates initial viability scores, summarizes features, and tags SDGs automatically.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 20px;">
+                    <div style="width: 42px; height: 42px; border-radius: 50%; background-color: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent-gold); flex-shrink: 0; color: var(--accent-gold);">
+                        <i data-lucide="git-commit"></i>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1.05rem; margin-bottom: 4px; color: #FFF;">3. Stage-Gate Pipeline</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary-dark); line-height: 1.4;">
+                            Track your project through validation gates. Achieve milestones to release funding tranches directly.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        
+        function toggleAffiliationDetails() {
+            const select = document.getElementById('affiliation');
+            const studentIdGroup = document.getElementById('studentIdGroup');
+            
+            if (select.value === 'makerere_student' || select.value === 'makerere_staff') {
+                studentIdGroup.style.display = 'block';
+            } else {
+                studentIdGroup.style.display = 'none';
+            }
+        }
+        
+        // Run once on load
+        toggleAffiliationDetails();
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
