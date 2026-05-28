@@ -75,7 +75,7 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="affiliation">Affiliation</Label>
-            <Select value={formData.affiliation} onValueChange={(v) => handleChange("affiliation", v)}>
+            <Select value={formData.affiliation} onValueChange={(v) => handleChange("affiliation", v || "")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select your affiliation" />
               </SelectTrigger>

@@ -116,7 +116,7 @@ export default function NewProjectPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="track">Submission Track</Label>
-                <Select value={formData.track} onValueChange={(v) => handleChange("track", v)}>
+                <Select value={formData.track} onValueChange={(v) => handleChange("track", v || "")}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a track" />
                   </SelectTrigger>
@@ -130,7 +130,7 @@ export default function NewProjectPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sector">Primary Sector</Label>
-                <Select value={formData.sector} onValueChange={(v) => handleChange("sector", v)}>
+                <Select value={formData.sector} onValueChange={(v) => handleChange("sector", v || "")}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a sector" />
                   </SelectTrigger>
