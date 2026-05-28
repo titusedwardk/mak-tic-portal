@@ -57,13 +57,36 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             AI vs Human Scoring
           </Link>
           {profile.role === "admin" && (
-            <Link 
-              href="/admin/users"
-              className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Users
-            </Link>
+            <>
+              <Link 
+                href="/admin/users"
+                className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Users
+              </Link>
+              <Link 
+                href="/admin/mentors"
+                className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Mentors
+              </Link>
+              <Link 
+                href="/admin/challenges"
+                className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Challenges
+              </Link>
+              <Link 
+                href="/admin/funding"
+                className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Funding
+              </Link>
+            </>
           )}
         </nav>
       </aside>
