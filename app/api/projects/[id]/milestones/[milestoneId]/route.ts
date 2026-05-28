@@ -29,11 +29,16 @@ export async function PATCH(
       .eq('id', projectId)
       .single()
 
-    const isOwner = project?.owner_id === user.id
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const isOwner = project.owner_id === user.id
 
     if (!membership && !isOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
 
     const body = await request.json()
     const { status, evidence_url, completed_at } = body
