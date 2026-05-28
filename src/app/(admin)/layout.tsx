@@ -42,6 +42,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Projects
           </Link>
+          <Link 
+            href="/admin/pipeline" 
+            className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Review Pipeline
+          </Link>
+          <Link 
+            href="/admin/scoring" 
+            className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            AI vs Human Scoring
+          </Link>
           {profile.role === "admin" && (
             <Link 
               href="/admin/users"
