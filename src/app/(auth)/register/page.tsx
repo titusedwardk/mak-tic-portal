@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/utils/supabase/client";
 
 export default function RegisterPage() {
   const router = useRouter();
