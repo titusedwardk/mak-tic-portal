@@ -17,6 +17,13 @@ export default function PortalLayout({
             <a href="/facilities" className="transition-colors hover:text-foreground/80 text-foreground">Facilities</a>
             <a href="/courses" className="transition-colors hover:text-foreground/80 text-foreground">LMS</a>
           </nav>
+          <div className="flex-1 flex justify-end">
+            <form action="/auth/signout" method="post">
+              <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Sign Out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="flex-1">
