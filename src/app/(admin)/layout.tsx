@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Users, Settings, FileText } from "lucide-react";
+import { LayoutDashboard, Users, Settings, FileText, Calendar } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +55,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             <Settings className="mr-2 h-4 w-4" />
             AI vs Human Scoring
+          </Link>
+          <Link 
+            href="/admin/facilities" 
+            className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            Facility Bookings
           </Link>
           {profile.role === "admin" && (
             <>

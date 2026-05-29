@@ -1,24 +1,50 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/utils/supabase/server";
+import { ChallengeManager } from "./ChallengeManager";
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminChallengesPage() {
+export default async function AdminChallengesPage() {
+  const supabase = await createClient();
+
+  // 1. Fetch Challenges
+  const { data: challenges, error: challengesError } = await supabase
+    .from("challenges")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (challengesError) {
+    console.error("Failed to load challenges for admin:", challengesError);
+  }
+
+  // 2. Fetch Submissions with profiles, challenge details, and projects details
+  const { data: submissions, error: submissionsError } = await supabase
+    .from("challenge_submissions")
+    .select(`
+      *,
+      profiles(full_name, email),
+      challenges(title),
+      projects(title, slug)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (submissionsError) {
+    console.error("Failed to load submissions for admin:", submissionsError);
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Challenge Management</h1>
-        <p className="text-muted-foreground mt-1">Create and manage Open Innovation Challenges and Sponsors.</p>
+        <p className="text-muted-foreground mt-1">
+          Create innovation challenges, configure judging deadlines and target sectors, and review solution entries.
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Challenges</CardTitle>
-          <CardDescription>Draft, Open, or Closed challenges across the portal.</CardDescription>
-        </CardHeader>
-        <CardContent className="h-40 flex items-center justify-center border-t border-dashed bg-muted/20">
-          <span className="text-muted-foreground">Challenge management coming soon</span>
-        </CardContent>
-      </Card>
+      <ChallengeManager
+        challenges={challenges || []}
+        submissions={submissions || []}
+      />
     </div>
   );
 }
+
