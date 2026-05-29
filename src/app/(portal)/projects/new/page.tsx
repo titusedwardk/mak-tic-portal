@@ -97,18 +97,6 @@ export default function NewProjectPage() {
         }
       }
 
-      // Call Next.js API route to run Gemini Evaluation and update project
-      const aiResponse = await fetch("/api/ai/score-project", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: project.id }),
-      });
-
-      if (!aiResponse.ok) {
-        console.error("AI scoring failed");
-        // We don't throw here so the user still gets redirected
-      }
-
       toast.success("Project submitted successfully! Redirecting...");
       router.push(`/dashboard`);
     } catch (error: any) {

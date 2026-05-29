@@ -32,18 +32,31 @@ export async function POST(req: NextRequest) {
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("owner_id", user.id)
       .single();
 
     if (dbError || !project) {
-      return NextResponse.json({ error: "Project not found or access denied" }, { status: 404 });
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Check permissions (Owner OR Admin/Reviewer)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    
+    const isOwner = project.owner_id === user.id;
+    const isStaff = profile?.role === "admin" || profile?.role === "reviewer" || profile?.role === "staff";
+
+    if (!isOwner && !isStaff) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const prompt = `Title: ${project.title}\nDescription: ${project.description}\nProblem: ${project.problem_statement}\nSolution: ${project.proposed_solution}`;
 
     // Call Gemini to generate score and summary
     const { object } = await generateObject({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-1.5-pro"),
       system: systemPrompt,
       prompt: prompt,
       schema: z.object({

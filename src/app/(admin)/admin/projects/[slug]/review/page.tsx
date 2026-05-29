@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { revalidatePath } from "next/cache";
+import RunAIReviewButton from "./RunAIReviewButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function ReviewPage({ params }: { params: { slug: string } 
   // Get project by slug
   const { data: project } = await supabase
     .from("projects")
-    .select("id, title, description, problem_statement, proposed_solution, stage")
+    .select("id, title, description, problem_statement, proposed_solution, stage, ai_score, ai_summary")
     .eq("slug", params.slug)
     .single();
 
@@ -72,29 +73,48 @@ export default async function ReviewPage({ params }: { params: { slug: string } 
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Review: {project.title}</h1>
-        <p className="text-muted-foreground mt-1">
-          Stage Gate: <span className="font-medium capitalize">{project.stage.replace('_', ' ')}</span>
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Review: {project.title}</h1>
+          <p className="text-muted-foreground mt-1">
+            Stage Gate: <span className="font-medium capitalize">{project.stage.replace('_', ' ')}</span>
+          </p>
+        </div>
+        <RunAIReviewButton projectId={project.id} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-sm text-muted-foreground mb-1">Problem Statement</h3>
-              <p className="text-sm">{project.problem_statement}</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm text-muted-foreground mb-1">Proposed Solution</h3>
-              <p className="text-sm">{project.proposed_solution}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Project Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-1">Problem Statement</h3>
+                <p className="text-sm">{project.problem_statement}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-1">Proposed Solution</h3>
+                <p className="text-sm">{project.proposed_solution}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {project.ai_score !== null && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex justify-between">
+                  <span>AI Pre-Screening</span>
+                  <span className="text-primary font-bold">{project.ai_score}/100</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{project.ai_summary}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <Card>
           <form action={submitReview}>
