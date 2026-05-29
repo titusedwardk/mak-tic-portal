@@ -8,24 +8,36 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 interface ProjectDetailsProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export default async function ProjectDetailsPage({ params }: ProjectDetailsProps) {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: project } = await supabase
+  const { data: project, error } = await supabase
     .from("projects")
     .select(`
       *,
       profiles ( full_name, affiliation ),
       project_files ( file_name, storage_path, file_type )
     `)
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
+
+  if (error) {
+    console.error("Supabase error fetching project:", error);
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold text-red-600">Error loading project</h1>
+        <pre className="p-4 bg-muted text-sm rounded-md overflow-auto">{JSON.stringify(error, null, 2)}</pre>
+      </div>
+    );
+  }
 
   if (!project) {
     notFound();

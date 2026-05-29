@@ -7,7 +7,9 @@ import RunAIReviewButton from "./RunAIReviewButton";
 
 export const dynamic = 'force-dynamic';
 
-export default async function ReviewPage({ params }: { params: { slug: string } }) {
+export default async function ReviewPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,7 +21,7 @@ export default async function ReviewPage({ params }: { params: { slug: string } 
   const { data: project } = await supabase
     .from("projects")
     .select("id, title, description, problem_statement, proposed_solution, stage, ai_score, ai_summary")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
 
   if (!project) {
