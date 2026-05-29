@@ -1,8 +1,27 @@
-export default function PortalLayout({
+import { createClient } from "@/utils/supabase/server";
+
+export default async function PortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let role = "student";
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile) {
+      role = profile.role;
+    }
+  }
+
+  const isAdminOrReviewer = role === "admin" || role === "reviewer";
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -17,7 +36,12 @@ export default function PortalLayout({
             <a href="/facilities" className="transition-colors hover:text-foreground/80 text-foreground">Facilities</a>
             <a href="/courses" className="transition-colors hover:text-foreground/80 text-foreground">LMS</a>
           </nav>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end items-center gap-4">
+            {isAdminOrReviewer && (
+              <a href="/admin/dashboard" className="text-sm font-semibold text-primary hover:underline">
+                Admin Portal
+              </a>
+            )}
             <form action="/auth/signout" method="post">
               <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Sign Out
