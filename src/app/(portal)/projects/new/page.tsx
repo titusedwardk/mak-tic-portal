@@ -31,6 +31,7 @@ const projectSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(100, "Title is too long"),
   track: z.enum(["early_idea", "prototype", "market_ready", "ip_only"]),
   sector: z.enum(["agriculture", "health", "education", "energy", "fintech", "other"]),
+  support_needed: z.enum(["mentorship", "funding", "lab_space", "equipment", "ip_filing", "other"]),
   description: z.string().trim().min(10, "Description must be at least 10 characters").max(300, "Description is too long"),
   problem_statement: z.string().trim().min(20, "Problem statement must be at least 20 characters").max(2000, "Problem statement is too long"),
   proposed_solution: z.string().trim().min(20, "Proposed solution must be at least 20 characters").max(2000, "Proposed solution is too long"),
@@ -59,7 +60,7 @@ export default function NewProjectPage() {
 
   const handleNext = async () => {
     let fieldsToValidate: any[] = [];
-    if (step === 1) fieldsToValidate = ["title", "track", "sector"];
+    if (step === 1) fieldsToValidate = ["title", "track", "sector", "support_needed"];
     if (step === 2) fieldsToValidate = ["description", "problem_statement", "proposed_solution"];
 
     const isStepValid = await trigger(fieldsToValidate);
@@ -143,6 +144,7 @@ export default function NewProjectPage() {
           owner_id: user.id,
           track: data.track,
           sector: [data.sector],
+          support_needed: [data.support_needed],
         })
         .select()
         .single();
@@ -247,6 +249,29 @@ export default function NewProjectPage() {
                 />
                 {errors.sector && <p className="text-sm text-destructive">{errors.sector.message}</p>}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="support_needed">Primary Support Needed</Label>
+                <Controller
+                  name="support_needed"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select support type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mentorship">Mentorship & Guidance</SelectItem>
+                        <SelectItem value="funding">Funding & Grants</SelectItem>
+                        <SelectItem value="lab_space">Lab Space / Facility</SelectItem>
+                        <SelectItem value="equipment">Specialized Equipment</SelectItem>
+                        <SelectItem value="ip_filing">IP Filing / Legal</SelectItem>
+                        <SelectItem value="other">Other / General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.support_needed && <p className="text-sm text-destructive">{errors.support_needed.message}</p>}
+              </div>
             </CardContent>
             <CardFooter className="flex justify-end">
               <Button onClick={handleNext}>Next Step</Button>
@@ -329,6 +354,10 @@ export default function NewProjectPage() {
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Sector</h4>
                     <p className="capitalize">{getValues("sector")}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Support Needed</h4>
+                    <p className="capitalize">{(getValues("support_needed") || "").replace("_", " ")}</p>
                   </div>
                 </div>
                 <div>
