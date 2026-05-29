@@ -45,7 +45,7 @@ export default function NewProjectPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    toast.info("Submitting your project and running AI evaluation...");
+    toast.info("Submitting your project...");
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -271,7 +271,7 @@ export default function NewProjectPage() {
             <CardFooter className="flex justify-between">
               <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>Back</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit for AI Evaluation"}
+                {isSubmitting ? "Submitting..." : "Submit Project"}
               </Button>
             </CardFooter>
           </>
