@@ -42,6 +42,11 @@ export default async function ReviewPage({ params }: { params: { slug: string } 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
+    const { data: profile } = await supabaseClient.from("profiles").select("role").eq("id", user.id).single();
+    if (!profile || (profile.role !== "admin" && profile.role !== "reviewer")) {
+      throw new Error("Unauthorized: Only admins and reviewers can submit evaluations");
+    }
+
     const score_impact = parseInt(formData.get("score_impact") as string);
     const score_feasibility = parseInt(formData.get("score_feasibility") as string);
     const score_team = parseInt(formData.get("score_team") as string);

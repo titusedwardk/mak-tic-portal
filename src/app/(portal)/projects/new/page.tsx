@@ -10,42 +10,102 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 export const dynamic = 'force-dynamic';
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_MIME_TYPES = [
+  "application/pdf", 
+  "application/vnd.ms-powerpoint", 
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", 
+  "application/msword", 
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+  "video/mp4", 
+  "video/quicktime"
+];
+
+const projectSchema = z.object({
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(100, "Title is too long"),
+  track: z.enum(["early_idea", "prototype", "market_ready", "ip_only"]),
+  sector: z.enum(["agriculture", "health", "education", "energy", "fintech", "other"]),
+  description: z.string().trim().min(10, "Description must be at least 10 characters").max(300, "Description is too long"),
+  problem_statement: z.string().trim().min(20, "Problem statement must be at least 20 characters").max(2000, "Problem statement is too long"),
+  proposed_solution: z.string().trim().min(20, "Proposed solution must be at least 20 characters").max(2000, "Proposed solution is too long"),
+});
+
+type ProjectFormValues = z.infer<typeof projectSchema>;
 
 export default function NewProjectPage() {
   const router = useRouter();
   const supabase = createClient();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
 
-  const [formData, setFormData] = useState({
-    title: "",
-    track: "",
-    sector: "",
-    description: "",
-    problem_statement: "",
-    proposed_solution: "",
+  const { register, handleSubmit, control, trigger, getValues, formState: { errors } } = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      problem_statement: "",
+      proposed_solution: "",
+    }
   });
 
-  const [file, setFile] = useState<File | null>(null);
+  const handleNext = async () => {
+    let fieldsToValidate: any[] = [];
+    if (step === 1) fieldsToValidate = ["title", "track", "sector"];
+    if (step === 2) fieldsToValidate = ["description", "problem_statement", "proposed_solution"];
 
-  const handleNext = () => setStep((prev) => prev + 1);
-  const handleBack = () => setStep((prev) => prev - 1);
+    const isStepValid = await trigger(fieldsToValidate);
+    
+    // Manual file validation on step 2
+    if (step === 2 && file) {
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError("File size exceeds the 50MB limit.");
+        return;
+      }
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        setFileError("Invalid file type. Please upload a supported format.");
+        return;
+      }
+      setFileError("");
+    }
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (isStepValid) {
+      setStep((prev) => prev + 1);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleBack = () => setStep((prev) => prev - 1);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        setFileError("File size exceeds the 50MB limit.");
+      } else if (!ALLOWED_MIME_TYPES.includes(selectedFile.type)) {
+        setFileError("Invalid file type. Please upload a supported format.");
+      } else {
+        setFileError("");
+      }
+    }
+  };
+
+  const onSubmit = async (data: ProjectFormValues) => {
+    if (fileError) {
+      toast.error("Please fix file errors before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
-    toast.info("Submitting your project...");
+    setUploadStatus("Uploading file...");
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -55,46 +115,51 @@ export default function NewProjectPage() {
         return;
       }
 
-      // First, insert into Supabase
-      const { data: project, error: dbError } = await supabase
-        .from("projects")
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          problem_statement: formData.problem_statement,
-          proposed_solution: formData.proposed_solution,
-          owner_id: user.id,
-          track: formData.track,
-          sector: [formData.sector], // stored as array
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      // Upload file if selected
+      let filePath = "";
+      // 1. Upload File First (to ensure it succeeds before creating project)
       if (file) {
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${user.id}/${project.id}-${Date.now()}.${fileExt}`;
+        const fileExt = file.name.split('.').pop() || "bin";
+        filePath = `${user.id}/project-${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from("project_files")
           .upload(filePath, file);
 
         if (uploadError) {
-          console.error("Upload error:", uploadError);
-          toast.error("Project saved, but file upload failed.");
-        } else {
-          await supabase.from("project_files").insert({
-            project_id: project.id,
-            uploaded_by: user.id,
-            file_name: file.name,
-            file_type: "other",
-            storage_path: filePath,
-            file_size_bytes: file.size,
-            mime_type: file.type || "application/octet-stream"
-          });
+          throw new Error(`File upload failed: ${uploadError.message}`);
         }
+      }
+
+      setUploadStatus("Saving project details...");
+
+      // 2. Insert Project
+      const { data: project, error: dbError } = await supabase
+        .from("projects")
+        .insert({
+          title: data.title,
+          description: data.description,
+          problem_statement: data.problem_statement,
+          proposed_solution: data.proposed_solution,
+          owner_id: user.id,
+          track: data.track,
+          sector: [data.sector],
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // 3. Insert Project File Record
+      if (file && filePath) {
+        await supabase.from("project_files").insert({
+          project_id: project.id,
+          uploaded_by: user.id,
+          file_name: file.name,
+          file_type: "other",
+          storage_path: filePath,
+          file_size_bytes: file.size,
+          mime_type: file.type || "application/octet-stream"
+        });
       }
 
       toast.success("Project submitted successfully! Redirecting...");
@@ -104,6 +169,7 @@ export default function NewProjectPage() {
       toast.error(error.message || "Failed to submit project.");
     } finally {
       setIsSubmitting(false);
+      setUploadStatus("");
     }
   };
 
@@ -133,45 +199,57 @@ export default function NewProjectPage() {
                 <Input
                   id="title"
                   placeholder="e.g. AgriTech Smart Sensors"
-                  value={formData.title}
-                  onChange={(e) => handleChange("title", e.target.value)}
+                  {...register("title")}
                 />
+                {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="track">Submission Track</Label>
-                <Select value={formData.track} onValueChange={(v) => handleChange("track", v || "")}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a track" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="early_idea">Early Idea / Concept</SelectItem>
-                    <SelectItem value="prototype">Working Prototype</SelectItem>
-                    <SelectItem value="market_ready">Market Ready</SelectItem>
-                    <SelectItem value="ip_only">IP / Patent Only</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="track"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a track" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="early_idea">Early Idea / Concept</SelectItem>
+                        <SelectItem value="prototype">Working Prototype</SelectItem>
+                        <SelectItem value="market_ready">Market Ready</SelectItem>
+                        <SelectItem value="ip_only">IP / Patent Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.track && <p className="text-sm text-destructive">{errors.track.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sector">Primary Sector</Label>
-                <Select value={formData.sector} onValueChange={(v) => handleChange("sector", v || "")}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="agriculture">Agriculture & Food</SelectItem>
-                    <SelectItem value="health">Healthcare & Bio</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="energy">Energy & Environment</SelectItem>
-                    <SelectItem value="fintech">FinTech</SelectItem>
-                    <SelectItem value="other">Other / Multi-sector</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="sector"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a sector" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="agriculture">Agriculture & Food</SelectItem>
+                        <SelectItem value="health">Healthcare & Bio</SelectItem>
+                        <SelectItem value="education">Education</SelectItem>
+                        <SelectItem value="energy">Energy & Environment</SelectItem>
+                        <SelectItem value="fintech">FinTech</SelectItem>
+                        <SelectItem value="other">Other / Multi-sector</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.sector && <p className="text-sm text-destructive">{errors.sector.message}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button onClick={handleNext} disabled={!formData.title || !formData.track || !formData.sector}>
-                Next Step
-              </Button>
+              <Button onClick={handleNext}>Next Step</Button>
             </CardFooter>
           </>
         )}
@@ -188,9 +266,9 @@ export default function NewProjectPage() {
                 <Textarea
                   id="description"
                   placeholder="Summarize your project in 1-2 sentences..."
-                  value={formData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
+                  {...register("description")}
                 />
+                {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="problem_statement">Problem Statement</Label>
@@ -198,9 +276,9 @@ export default function NewProjectPage() {
                   id="problem_statement"
                   className="min-h-[100px]"
                   placeholder="What specific problem are you solving? Who is affected?"
-                  value={formData.problem_statement}
-                  onChange={(e) => handleChange("problem_statement", e.target.value)}
+                  {...register("problem_statement")}
                 />
+                {errors.problem_statement && <p className="text-sm text-destructive">{errors.problem_statement.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="proposed_solution">Proposed Solution</Label>
@@ -208,9 +286,9 @@ export default function NewProjectPage() {
                   id="proposed_solution"
                   className="min-h-[100px]"
                   placeholder="How does your project solve this problem? What is the technology/innovation?"
-                  value={formData.proposed_solution}
-                  onChange={(e) => handleChange("proposed_solution", e.target.value)}
+                  {...register("proposed_solution")}
                 />
+                {errors.proposed_solution && <p className="text-sm text-destructive">{errors.proposed_solution.message}</p>}
               </div>
               <div className="space-y-2 pt-4 border-t">
                 <Label htmlFor="file_upload">Supporting Document (Pitch Deck, Demo Video, etc.)</Label>
@@ -220,14 +298,13 @@ export default function NewProjectPage() {
                   onChange={handleFileChange}
                   accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.mov"
                 />
-                <p className="text-xs text-muted-foreground">Optional. Attach a file to support your submission.</p>
+                <p className="text-xs text-muted-foreground">Optional. Maximum 50MB. Allowed: PDF, Word, PPT, MP4, MOV.</p>
+                {fileError && <p className="text-sm text-destructive">{fileError}</p>}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button variant="outline" onClick={handleBack}>Back</Button>
-              <Button onClick={handleNext} disabled={!formData.description || !formData.problem_statement || !formData.proposed_solution}>
-                Review
-              </Button>
+              <Button onClick={handleNext}>Review</Button>
             </CardFooter>
           </>
         )}
@@ -242,36 +319,42 @@ export default function NewProjectPage() {
               <div className="rounded-lg border p-4 space-y-4">
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground">Title</h4>
-                  <p>{formData.title}</p>
+                  <p>{getValues("title")}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Track</h4>
-                    <p className="capitalize">{formData.track.replace("_", " ")}</p>
+                    <p className="capitalize">{(getValues("track") || "").replace("_", " ")}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Sector</h4>
-                    <p className="capitalize">{formData.sector}</p>
+                    <p className="capitalize">{getValues("sector")}</p>
                   </div>
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground">Description</h4>
-                  <p className="text-sm">{formData.description}</p>
+                  <p className="text-sm">{getValues("description")}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground">Problem</h4>
-                  <p className="text-sm">{formData.problem_statement}</p>
+                  <p className="text-sm whitespace-pre-wrap">{getValues("problem_statement")}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground">Solution</h4>
-                  <p className="text-sm">{formData.proposed_solution}</p>
+                  <p className="text-sm whitespace-pre-wrap">{getValues("proposed_solution")}</p>
                 </div>
+                {file && (
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Attached File</h4>
+                    <p className="text-sm">{file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)</p>
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>Back</Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit Project"}
+              <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+                {isSubmitting ? uploadStatus : "Submit Project"}
               </Button>
             </CardFooter>
           </>
