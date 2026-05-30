@@ -91,7 +91,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                Funding
+                Funding Tracks
+              </Link>
+
+              <Link 
+                href="/admin/ip"
+                className={buttonVariants({ variant: "ghost", className: "w-full justify-start" })}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                IP Tracking
               </Link>
             </>
           )}

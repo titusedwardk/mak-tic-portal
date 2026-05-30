@@ -1,6 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -54,17 +53,29 @@ export async function POST(req: NextRequest) {
 
     const prompt = `Title: ${project.title}\nDescription: ${project.description}\nProblem: ${project.problem_statement}\nSolution: ${project.proposed_solution}`;
 
-    // Call Gemini to generate score and summary
-    const { object } = await generateObject({
-      model: google("gemini-1.5-pro"),
-      system: systemPrompt,
-      prompt: prompt,
-      schema: z.object({
-        viability_score: z.number().min(0).max(100),
-        ai_summary: z.string(),
-        sdg_tags: z.array(z.number().min(1).max(17)),
+    // Call Python microservice
+    const baseUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
+    const response = await fetch(`${baseUrl}/agents/score-project`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: project.title,
+        track: project.track,
+        sector: project.sector,
+        description: project.description,
+        problem_statement: project.problem_statement,
+        proposed_solution: project.proposed_solution,
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      return NextResponse.json({ error: `Python service error: ${errorData}` }, { status: response.status });
+    }
+
+    const object = await response.json();
 
     // Update project in DB
     const { error: updateError } = await supabase

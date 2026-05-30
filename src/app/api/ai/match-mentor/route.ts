@@ -1,6 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -129,46 +128,25 @@ Bio: ${p?.bio || ""} ${m.bio_extended || ""}
 `;
     }).join("\n");
 
-    const systemPrompt = `You are a smart matchmaking coordinator at the Makerere University Technology & Innovation Center (Mak-TIC).
-Your job is to match unmatched projects with the best fit mentors based on:
-1. Expertise compatibility: Mentor's expertise sectors should align with the project's sectors and tracks.
-2. Mentoring workload: Try not to match projects to mentors who have reached their max capacity of mentees.
-3. Quality: Prioritize higher rated mentors if expertise matches, but distribute load fairly.
-
-For the list of unmatched projects and available mentors provided, determine the top match suggestions.
-For each project, suggest 1 or 2 potential mentors who are the best fit.
-Return a structured JSON object containing an array of 'suggestions'.
-Each suggestion MUST contain:
-- projectId: The exact UUID of the project.
-- mentorId: The exact UUID of the mentor.
-- compatibilityScore: An integer between 0 and 100 representing how well the mentor fits.
-- reasoning: A 2-3 sentence explanation highlighting specific expertise matching (e.g., matching IoT project with a mentor skilled in hardware/IoT).
-`;
-
-    const userPrompt = `
-UNMATCHED PROJECTS:
-${projectsText}
-
-AVAILABLE MENTORS:
-${mentorsText}
-`;
-
-    // 6. Generate matching using gemini-2.5-flash
-    const { object } = await generateObject({
-      model: google("gemini-2.5-flash"),
-      system: systemPrompt,
-      prompt: userPrompt,
-      schema: z.object({
-        suggestions: z.array(
-          z.object({
-            projectId: z.string().uuid(),
-            mentorId: z.string().uuid(),
-            compatibilityScore: z.number().min(0).max(100),
-            reasoning: z.string(),
-          })
-        ),
+    // 6. Call Python microservice
+    const baseUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
+    const response = await fetch(`${baseUrl}/agents/match-mentor`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        unmatched_projects_text: projectsText,
+        mentors_text: mentorsText,
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      return NextResponse.json({ error: `Python service error: ${errorData}` }, { status: response.status });
+    }
+
+    const object = await response.json();
 
     const suggestions = object.suggestions;
 
