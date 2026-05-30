@@ -1,9 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const CLOUD_RUN_URL = "https://mak-tic-agents-58308878683.us-central1.run.app";
+const FETCH_TIMEOUT_MS = 60_000;
 
 const requestSchema = z.object({
   projectId: z.string().uuid(),
@@ -51,37 +53,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch project" }, { status: 404 });
     }
 
-    // 5. Call Python microservice
-    const baseUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
-    const response = await fetch(`${baseUrl}/agents/ip-scan`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title: project.title,
-        track: project.track,
-        sector: project.sector,
-        description: project.description,
-        problem_statement: project.problem_statement,
-        proposed_solution: project.proposed_solution,
-      }),
-    });
+    // 4. Call Python microservice with timeout
+    const baseUrl = process.env.PYTHON_API_URL || CLOUD_RUN_URL;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      return NextResponse.json({ error: `Python service error: ${errorData}` }, { status: response.status });
+    try {
+      const response = await fetch(`${baseUrl}/agents/ip-scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          title: project.title,
+          track: project.track,
+          sector: project.sector || [],
+          description: project.description,
+          problem_statement: project.problem_statement,
+          proposed_solution: project.proposed_solution,
+        }),
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.error("Python service error in ip-scan:", response.status);
+        return NextResponse.json({ error: "AI IP scan service unavailable" }, { status: response.status });
+      }
+
+      const object = await response.json();
+
+      return NextResponse.json({
+        success: true,
+        scanResult: object,
+      });
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const object = await response.json();
-
-    return NextResponse.json({
-      success: true,
-      scanResult: object,
-    });
-
   } catch (error: any) {
+    if (error.name === "AbortError") {
+      return NextResponse.json({ error: "AI IP scan timed out" }, { status: 504 });
+    }
     console.error("IP Landscape Scan Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

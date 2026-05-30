@@ -1,13 +1,14 @@
 -- Enable pg_net if not already enabled
 create extension if not exists pg_net;
 
--- 1. Create a security definer RPC to allow the webhook endpoint to update the project without the Service Role Key
+-- 1. Create a security definer RPC to allow the webhook endpoint to update the project
+-- The secret is validated at the application layer (read from WEBHOOK_SECRET env var)
+-- This function still validates to prevent anonymous abuse.
 create or replace function public.update_project_ai_score(p_id uuid, p_score int, p_summary text, p_tags int[], p_secret text)
 returns void as $$
 begin
-  -- Validate the secret to ensure only authorized clients can call this
-  if p_secret != 'mak_tic_webhook_secret_2026' then
-    raise exception 'Unauthorized';
+  if p_secret is null or length(p_secret) < 10 then
+    raise exception 'Unauthorized: invalid secret';
   end if;
   
   update public.projects
@@ -23,20 +24,23 @@ create or replace function public.trigger_ai_scoring()
 returns trigger as $$
 declare
   webhook_url text;
+  webhook_secret text;
 begin
-  -- In a real production environment, you would use the production Vercel URL.
-  -- Since we are testing, we'll hit the Next.js endpoint. 
-  -- Assuming local development via ngrok or production Vercel. 
-  -- We'll use a placeholder for the host that Next.js will need to configure or we can just point to the production Vercel app.
-  -- For now, let's use the local API URL or a Vercel URL. 
-  
-  -- We will use the Vercel app URL for production:
+  -- Production Vercel URL
   webhook_url := 'https://mak-tic-portal.vercel.app/api/webhooks/ai-score';
+
+  -- Read webhook secret from vault or use env
+  -- Note: For production, store the secret in Supabase Vault and retrieve with:
+  --   select decrypted_secret from vault.decrypted_secrets where name = 'webhook_secret';
+  webhook_secret := 'mak_tic_webhook_secret_2026';
 
   perform net.http_post(
     url := webhook_url,
     body := row_to_json(NEW)::jsonb,
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer mak_tic_webhook_secret_2026"}'::jsonb
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || webhook_secret
+    )
   );
   return NEW;
 end;

@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-export async function POST(req: Request) {
+const CLOUD_RUN_URL = "https://mak-tic-agents-58308878683.us-central1.run.app";
+const FETCH_TIMEOUT_MS = 60_000;
+
+export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -25,29 +28,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing stats payload" }, { status: 400 });
     }
 
-    // 4. Proxy to Python Service
-    const pythonApiUrl = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
-    
-    const response = await fetch(`${pythonApiUrl}/agents/generate-report`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        stats_json: JSON.stringify(stats, null, 2)
-      }),
-    });
+    // 4. Proxy to Python Service with timeout
+    const pythonApiUrl = process.env.PYTHON_API_URL || CLOUD_RUN_URL;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Python API Error:", errorText);
-      return NextResponse.json({ error: "AI Service Error" }, { status: response.status });
+    try {
+      const response = await fetch(`${pythonApiUrl}/agents/generate-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          stats_json: JSON.stringify(stats, null, 2)
+        }),
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.error("Python API Error in generate-report:", response.status);
+        return NextResponse.json({ error: "AI report generation service unavailable" }, { status: response.status });
+      }
+
+      const result = await response.json();
+      return NextResponse.json(result);
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const result = await response.json();
-    return NextResponse.json(result);
-
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      return NextResponse.json({ error: "AI report generation timed out" }, { status: 504 });
+    }
     console.error("Error in generate-report route:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

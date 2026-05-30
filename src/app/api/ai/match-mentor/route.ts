@@ -1,9 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const CLOUD_RUN_URL = "https://mak-tic-agents-58308878683.us-central1.run.app";
+const FETCH_TIMEOUT_MS = 60_000;
 
 const requestSchema = z.object({
   projectId: z.string().uuid().optional(), // Optionally restrict matching to a single project
@@ -100,14 +102,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No mentors registered in the system" }, { status: 400 });
     }
 
-    // 5. Structure prompt for Gemini
+    // 5. Structure prompt for Gemini (null-safe array access)
     const projectsText = unmatchedProjects.map((p, idx) => `
 PROJECT #${idx + 1}
 ID: ${p.id}
 Title: ${p.title}
 Track: ${p.track}
-Sectors: ${p.sector.join(", ")}
-Support Needed: ${p.support_needed.join(", ")}
+Sectors: ${(p.sector || []).join(", ") || "N/A"}
+Support Needed: ${(p.support_needed || []).join(", ") || "N/A"}
 Description: ${p.description}
 Problem: ${p.problem_statement}
 Solution: ${p.proposed_solution}
@@ -120,7 +122,7 @@ Solution: ${p.proposed_solution}
 MENTOR #${idx + 1}
 ID: ${m.id}
 Name: ${p?.full_name || "Unknown"}
-Expertise Sectors: ${m.expertise_sectors.join(", ")}
+Expertise Sectors: ${(m.expertise_sectors || []).join(", ") || "N/A"}
 Current Workload: ${m.current_mentees || 0} / ${m.max_mentees || 3} mentees
 Average Rating: ${m.rating_avg || "N/A"}
 Bio: ${p?.bio || ""} ${m.bio_extended || ""}
@@ -128,87 +130,96 @@ Bio: ${p?.bio || ""} ${m.bio_extended || ""}
 `;
     }).join("\n");
 
-    // 6. Call Python microservice
-    const baseUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
-    const response = await fetch(`${baseUrl}/agents/match-mentor`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        unmatched_projects_text: projectsText,
-        mentors_text: mentorsText,
-      }),
-    });
+    // 6. Call Python microservice with timeout
+    const baseUrl = process.env.PYTHON_API_URL || CLOUD_RUN_URL;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      return NextResponse.json({ error: `Python service error: ${errorData}` }, { status: response.status });
-    }
+    try {
+      const response = await fetch(`${baseUrl}/agents/match-mentor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          unmatched_projects_text: projectsText,
+          mentors_text: mentorsText,
+        }),
+      });
 
-    const object = await response.json();
+      clearTimeout(timeout);
 
-    const suggestions = object.suggestions;
+      if (!response.ok) {
+        console.error("Python service error in match-mentor:", response.status);
+        return NextResponse.json({ error: "AI matching service unavailable" }, { status: response.status });
+      }
 
-    // 7. Register suggestions in database as 'proposed' assignments
-    const registeredSuggestions = [];
+      const object = await response.json();
+      const suggestions = object.suggestions || [];
 
-    for (const match of suggestions) {
-      // Check if this exact proposed pair already exists in the assignments
-      const { data: existing } = await supabase
-        .from("mentor_assignments")
-        .select("id, status")
-        .eq("project_id", match.projectId)
-        .eq("mentor_id", match.mentorId)
-        .maybeSingle();
+      // 7. Register suggestions in database as 'proposed' assignments
+      const registeredSuggestions = [];
 
-      if (!existing) {
-        const { data: newAssignment, error: insertError } = await supabase
+      for (const match of suggestions) {
+        // Check if this exact proposed pair already exists in the assignments
+        const { data: existing } = await supabase
           .from("mentor_assignments")
-          .insert({
-            project_id: match.projectId,
-            mentor_id: match.mentorId,
-            status: "proposed",
-            compatibility_score: match.compatibilityScore,
-            match_reasoning: match.reasoning,
-          })
-          .select("id")
-          .single();
+          .select("id, status")
+          .eq("project_id", match.projectId)
+          .eq("mentor_id", match.mentorId)
+          .maybeSingle();
 
-        if (!insertError && newAssignment) {
-          registeredSuggestions.push({
-            ...match,
-            assignmentId: newAssignment.id,
-            status: "proposed",
-          });
-        }
-      } else {
-        // If it already exists as proposed, update the score and reasoning
-        if (existing.status === "proposed") {
-          await supabase
+        if (!existing) {
+          const { data: newAssignment, error: insertError } = await supabase
             .from("mentor_assignments")
-            .update({
+            .insert({
+              project_id: match.projectId,
+              mentor_id: match.mentorId,
+              status: "proposed",
               compatibility_score: match.compatibilityScore,
               match_reasoning: match.reasoning,
             })
-            .eq("id", existing.id);
+            .select("id")
+            .single();
+
+          if (!insertError && newAssignment) {
+            registeredSuggestions.push({
+              ...match,
+              assignmentId: newAssignment.id,
+              status: "proposed",
+            });
+          }
+        } else {
+          // If it already exists as proposed, update the score and reasoning
+          if (existing.status === "proposed") {
+            await supabase
+              .from("mentor_assignments")
+              .update({
+                compatibility_score: match.compatibilityScore,
+                match_reasoning: match.reasoning,
+              })
+              .eq("id", existing.id);
+          }
+
+          registeredSuggestions.push({
+            ...match,
+            assignmentId: existing.id,
+            status: existing.status,
+          });
         }
-
-        registeredSuggestions.push({
-          ...match,
-          assignmentId: existing.id,
-          status: existing.status,
-        });
       }
+
+      return NextResponse.json({
+        success: true,
+        suggestions: registeredSuggestions,
+      });
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return NextResponse.json({
-      success: true,
-      suggestions: registeredSuggestions,
-    });
-
   } catch (error: any) {
+    if (error.name === "AbortError") {
+      return NextResponse.json({ error: "AI matching timed out" }, { status: 504 });
+    }
     console.error("Mentor Matchmaking Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
