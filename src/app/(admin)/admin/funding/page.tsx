@@ -97,7 +97,7 @@ export default function AdminFundingDashboard() {
           <p className="text-muted-foreground">Monitor innovation grants and budget tracking.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
+          <DialogTrigger>
             <Button><Plus className="h-4 w-4 mr-2"/> Add Track</Button>
           </DialogTrigger>
           <DialogContent>
